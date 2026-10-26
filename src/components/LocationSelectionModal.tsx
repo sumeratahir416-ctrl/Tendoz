@@ -122,14 +122,18 @@ export const LocationSelectionModal: React.FC<LocationSelectionModalProps> = ({
     }
   }, [initialSelection, isOpen]);
 
+  const filteredAreas = React.useMemo(() => {
+    const query = areaSearchQuery.trim().toLowerCase();
+    if (!query) return SAHIWAL_AREAS;
+    return SAHIWAL_AREAS.filter((area) =>
+      area.toLowerCase().includes(query)
+    );
+  }, [areaSearchQuery]);
+
   if (!isOpen) return null;
 
   const isFormValid =
     orderType === 'Delivery' ? Boolean(selectedArea.trim()) : Boolean(selectedBranch.trim());
-
-  const filteredAreas = SAHIWAL_AREAS.filter((area) =>
-    area.toLowerCase().includes(areaSearchQuery.trim().toLowerCase())
-  );
 
   const handleConfirm = () => {
     if (!isFormValid) return;
@@ -194,6 +198,9 @@ export const LocationSelectionModal: React.FC<LocationSelectionModalProps> = ({
               <img
                 src={tendozBrandLogoImg}
                 alt="Tendoz Restaurant"
+                width="80"
+                height="80"
+                decoding="async"
                 className="w-full h-full object-cover block"
               />
             </div>

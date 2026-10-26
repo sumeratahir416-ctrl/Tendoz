@@ -12,18 +12,38 @@ import {
 } from './data/initialData';
 import { WebHeader } from './components/WebHeader';
 import { HomeScreen } from './components/screens/HomeScreen';
-import { NewMenuScreen } from './components/screens/NewMenuScreen';
-import { ProductDetailModal } from './components/screens/ProductDetailModal';
-import { CheckoutScreen } from './components/screens/CheckoutScreen';
-import { SuccessModal } from './components/screens/SuccessModal';
-import { AdminScreen } from './components/screens/AdminScreen';
-import { CartDrawer } from './components/screens/CartDrawer';
-import { WishlistScreen } from './components/screens/WishlistScreen';
-import { OrderTrackingModal } from './components/screens/OrderTrackingModal';
 import { Footer } from './components/Footer';
 import { AppLaunchSkeleton } from './components/AppLaunchSkeleton';
-import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { LocationSelectionModal, UserLocationSelection } from './components/LocationSelectionModal';
+
+// Code-split secondary screens and modals to reduce main-thread JS parse time and payload
+const NewMenuScreen = React.lazy(() =>
+  import('./components/screens/NewMenuScreen').then((m) => ({ default: m.NewMenuScreen }))
+);
+const ProductDetailModal = React.lazy(() =>
+  import('./components/screens/ProductDetailModal').then((m) => ({ default: m.ProductDetailModal }))
+);
+const CheckoutScreen = React.lazy(() =>
+  import('./components/screens/CheckoutScreen').then((m) => ({ default: m.CheckoutScreen }))
+);
+const SuccessModal = React.lazy(() =>
+  import('./components/screens/SuccessModal').then((m) => ({ default: m.SuccessModal }))
+);
+const AdminScreen = React.lazy(() =>
+  import('./components/screens/AdminScreen').then((m) => ({ default: m.AdminScreen }))
+);
+const CartDrawer = React.lazy(() =>
+  import('./components/screens/CartDrawer').then((m) => ({ default: m.CartDrawer }))
+);
+const WishlistScreen = React.lazy(() =>
+  import('./components/screens/WishlistScreen').then((m) => ({ default: m.WishlistScreen }))
+);
+const OrderTrackingModal = React.lazy(() =>
+  import('./components/screens/OrderTrackingModal').then((m) => ({ default: m.OrderTrackingModal }))
+);
+const AdminPasswordModal = React.lazy(() =>
+  import('./components/AdminPasswordModal').then((m) => ({ default: m.AdminPasswordModal }))
+);
 import {
   DynamicNotificationsProvider,
   useDynamicNotifications,
@@ -309,14 +329,14 @@ function MainApp() {
     // Preload top logo, promotional carousel banners, and popular items
     preloadLaunchAssets().then(() => {
       const elapsed = performance.now() - startTime;
-      // Ultra-snappy splash duration (~200ms) for instant smooth transition without sluggish delay
-      const minDisplayDuration = 200;
+      // Ultra-snappy splash duration (~50ms) for instant smooth transition without sluggish delay
+      const minDisplayDuration = 50;
       const remainingTime = Math.max(0, minDisplayDuration - elapsed);
 
       setTimeout(() => {
         setIsAppLoading(false);
         hasAppLaunchedRef.current = true;
-        // Stage 1, 2, 3 image hierarchy triggered immediately right after skeleton dismissal
+        // Background preloading triggered smoothly right after skeleton dismissal
         startImageLoadingHierarchy(items);
       }, remainingTime);
     });
@@ -1187,79 +1207,81 @@ function MainApp() {
             />
           )}
 
-          {currentScreen === 'new-menu' && (
-            <NewMenuScreen
-              key="new-menu"
-              items={items}
-              wishlistIds={wishlistIds}
-              onToggleWishlist={handleToggleWishlist}
-              onSelectItem={handleSelectItem}
-              onOrderNow={handleOrderNow}
-              onAddToCart={handleAddToCart}
-              cartCount={cartTotalCount}
-              onOpenCart={() => setIsCartDrawerOpen(true)}
-              onNavigate={handleNavigate}
-            />
-          )}
+          <React.Suspense fallback={null}>
+            {currentScreen === 'new-menu' && (
+              <NewMenuScreen
+                key="new-menu"
+                items={items}
+                wishlistIds={wishlistIds}
+                onToggleWishlist={handleToggleWishlist}
+                onSelectItem={handleSelectItem}
+                onOrderNow={handleOrderNow}
+                onAddToCart={handleAddToCart}
+                cartCount={cartTotalCount}
+                onOpenCart={() => setIsCartDrawerOpen(true)}
+                onNavigate={handleNavigate}
+              />
+            )}
 
-          {currentScreen === 'checkout' && (
-            <CheckoutScreen
-              key="checkout"
-              item={selectedItem}
-              cartItems={cart}
-              selectedLocation={selectedLocation}
-              onOpenLocationModal={() => setIsLocationModalOpen(true)}
-              onUpdateQuantity={handleUpdateQuantity}
-              onRemoveItem={handleRemoveFromCart}
-              onBack={() => handleNavigate('home')}
-              onConfirmOrder={handleConfirmOrder}
-            />
-          )}
+            {currentScreen === 'checkout' && (
+              <CheckoutScreen
+                key="checkout"
+                item={selectedItem}
+                cartItems={cart}
+                selectedLocation={selectedLocation}
+                onOpenLocationModal={() => setIsLocationModalOpen(true)}
+                onUpdateQuantity={handleUpdateQuantity}
+                onRemoveItem={handleRemoveFromCart}
+                onBack={() => handleNavigate('home')}
+                onConfirmOrder={handleConfirmOrder}
+              />
+            )}
 
-          {currentScreen === 'success' && activeOrder && (
-            <SuccessModal
-              key="success"
-              order={activeOrder}
-              onClose={() => handleNavigate('home')}
-              onNotifyMe={() => {
-                trigger({
-                  id: `notif_subscribed_${Date.now()}`,
-                  title: 'Push Notifications Enabled! 🔔',
-                  message: `We will alert you the moment Order #${activeOrder.id} is Out for Delivery!`,
-                  type: 'success',
-                  accent: '#10B981',
-                  duration: 4500,
-                });
-                handleNavigate('home');
-              }}
-            />
-          )}
+            {currentScreen === 'success' && activeOrder && (
+              <SuccessModal
+                key="success"
+                order={activeOrder}
+                onClose={() => handleNavigate('home')}
+                onNotifyMe={() => {
+                  trigger({
+                    id: `notif_subscribed_${Date.now()}`,
+                    title: 'Push Notifications Enabled! 🔔',
+                    message: `We will alert you the moment Order #${activeOrder.id} is Out for Delivery!`,
+                    type: 'success',
+                    accent: '#10B981',
+                    duration: 4500,
+                  });
+                  handleNavigate('home');
+                }}
+              />
+            )}
 
-          {currentScreen === 'admin' && (
-            <AdminScreen
-              key="admin"
-              items={items}
-              onAddItem={handleAddItem}
-              onEditItem={handleEditItem}
-              onDeleteItem={handleDeleteItem}
-              onSelectItem={handleSelectItem}
-              onSyncToFirestore={handleSyncToFirestore}
-              isSyncing={isFirebaseSyncing}
-              onBack={() => handleNavigate('home')}
-            />
-          )}
+            {currentScreen === 'admin' && (
+              <AdminScreen
+                key="admin"
+                items={items}
+                onAddItem={handleAddItem}
+                onEditItem={handleEditItem}
+                onDeleteItem={handleDeleteItem}
+                onSelectItem={handleSelectItem}
+                onSyncToFirestore={handleSyncToFirestore}
+                isSyncing={isFirebaseSyncing}
+                onBack={() => handleNavigate('home')}
+              />
+            )}
 
-          {currentScreen === 'wishlist' && (
-            <WishlistScreen
-              key="wishlist"
-              wishlistItems={wishlistItems}
-              onToggleWishlist={handleToggleWishlist}
-              onSelectItem={handleSelectItem}
-              onOrderNow={handleOrderNow}
-              onAddToCart={handleAddToCart}
-              onExplore={() => handleNavigate('home')}
-            />
-          )}
+            {currentScreen === 'wishlist' && (
+              <WishlistScreen
+                key="wishlist"
+                wishlistItems={wishlistItems}
+                onToggleWishlist={handleToggleWishlist}
+                onSelectItem={handleSelectItem}
+                onOrderNow={handleOrderNow}
+                onAddToCart={handleAddToCart}
+                onExplore={() => handleNavigate('home')}
+              />
+            )}
+          </React.Suspense>
         </AnimatePresence>
       </main>
 
@@ -1270,55 +1292,61 @@ function MainApp() {
       />
 
       {/* Slide-over Animated Cart Drawer Matching Reference Layout Exactly */}
-      <CartDrawer
-        isOpen={isCartDrawerOpen || currentScreen === 'cart'}
-        onClose={() => {
-          setIsCartDrawerOpen(false);
-          if (currentScreen === 'cart') {
-            setCurrentScreen('home');
-          }
-        }}
-        items={cart}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveFromCart}
-        onCheckout={() => {
-          setIsCartDrawerOpen(false);
-          handleNavigate('checkout');
-        }}
-        onExplore={() => {
-          setIsCartDrawerOpen(false);
-          if (currentScreen === 'cart') {
-            setCurrentScreen('home');
-          }
-        }}
-        onAddToCart={handleAddToCart}
-      />
+      <React.Suspense fallback={null}>
+        <CartDrawer
+          isOpen={isCartDrawerOpen || currentScreen === 'cart'}
+          onClose={() => {
+            setIsCartDrawerOpen(false);
+            if (currentScreen === 'cart') {
+              setCurrentScreen('home');
+            }
+          }}
+          items={cart}
+          onUpdateQuantity={handleUpdateQuantity}
+          onRemoveItem={handleRemoveFromCart}
+          onCheckout={() => {
+            setIsCartDrawerOpen(false);
+            handleNavigate('checkout');
+          }}
+          onExplore={() => {
+            setIsCartDrawerOpen(false);
+            if (currentScreen === 'cart') {
+              setCurrentScreen('home');
+            }
+          }}
+          onAddToCart={handleAddToCart}
+        />
+      </React.Suspense>
 
       {/* Redesigned Centered Product Detail Page (PDP) Modal */}
-      <AnimatePresence>
-        {isDetailModalOpen && selectedItem && (
-          <ProductDetailModal
-            isOpen={isDetailModalOpen}
-            item={selectedItem}
-            onClose={() => setIsDetailModalOpen(false)}
-            onAddToCart={handleAddToCart}
-          />
-        )}
-      </AnimatePresence>
+      <React.Suspense fallback={null}>
+        <AnimatePresence>
+          {isDetailModalOpen && selectedItem && (
+            <ProductDetailModal
+              isOpen={isDetailModalOpen}
+              item={selectedItem}
+              onClose={() => setIsDetailModalOpen(false)}
+              onAddToCart={handleAddToCart}
+            />
+          )}
+        </AnimatePresence>
+      </React.Suspense>
 
       {/* Live Kitchen Order Tracking Modal */}
-      {isTrackingOpen && activeOrder && (
-        <OrderTrackingModal
-          order={activeOrder}
-          onClose={() => setIsTrackingOpen(false)}
-          onBackToHome={() => {
-            setIsTrackingOpen(false);
-            handleNavigate('home');
-          }}
-          onCancelOrder={handleCancelOrder}
-          onDismiss={handleDismissActiveOrder}
-        />
-      )}
+      <React.Suspense fallback={null}>
+        {isTrackingOpen && activeOrder && (
+          <OrderTrackingModal
+            order={activeOrder}
+            onClose={() => setIsTrackingOpen(false)}
+            onBackToHome={() => {
+              setIsTrackingOpen(false);
+              handleNavigate('home');
+            }}
+            onCancelOrder={handleCancelOrder}
+            onDismiss={handleDismissActiveOrder}
+          />
+        )}
+      </React.Suspense>
 
       {/* Onboarding & User Location Selection Modal */}
       <LocationSelectionModal
@@ -1330,24 +1358,26 @@ function MainApp() {
       />
 
       {/* Admin Security Password Protection Modal */}
-      <AdminPasswordModal
-        isOpen={isAdminAuthModalOpen}
-        onClose={() => setIsAdminAuthModalOpen(false)}
-        onSuccess={() => {
-          setIsAdminAuthenticated(true);
-          setIsAdminAuthModalOpen(false);
-          setCurrentScreen('admin');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-          trigger({
-            id: `admin_auth_success_${Date.now()}`,
-            title: 'Admin Session Unlocked 🔓',
-            message: 'Welcome to Tendoz Kitchen Management Admin Panel.',
-            type: 'success',
-            accent: '#10B981',
-            duration: 3500,
-          });
-        }}
-      />
+      <React.Suspense fallback={null}>
+        <AdminPasswordModal
+          isOpen={isAdminAuthModalOpen}
+          onClose={() => setIsAdminAuthModalOpen(false)}
+          onSuccess={() => {
+            setIsAdminAuthenticated(true);
+            setIsAdminAuthModalOpen(false);
+            setCurrentScreen('admin');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            trigger({
+              id: `admin_auth_success_${Date.now()}`,
+              title: 'Admin Session Unlocked 🔓',
+              message: 'Welcome to Tendoz Kitchen Management Admin Panel.',
+              type: 'success',
+              accent: '#10B981',
+              duration: 3500,
+            });
+          }}
+        />
+      </React.Suspense>
     </div>
   );
 }

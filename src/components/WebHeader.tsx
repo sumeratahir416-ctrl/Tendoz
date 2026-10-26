@@ -129,8 +129,13 @@ export const WebHeader: React.FC<WebHeaderProps> = ({
                 <img
                   src={tendozBrandLogoImg}
                   alt="Tendoz Logo"
+                  width="45"
+                  height="45"
                   className="w-full h-full object-contain select-none"
                   referrerPolicy="no-referrer"
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="sync"
                 />
               </div>
 
@@ -139,8 +144,13 @@ export const WebHeader: React.FC<WebHeaderProps> = ({
                 <img
                   src={tendozBrandLogoImg}
                   alt="Tendoz Logo"
+                  width="60"
+                  height="60"
                   className="w-full h-full object-contain select-none"
                   referrerPolicy="no-referrer"
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="sync"
                 />
               </div>
             </div>

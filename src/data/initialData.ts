@@ -1,7 +1,7 @@
 import { MenuItem, Order, AdminStats, PizzaSizeOption } from '../types';
 
-import tendozBrandLogoImg from '../assets/images/tendoz_brand_logo.webp';
-import carouselBanner1Img from '../assets/images/tendoz_carousel_banner_1.webp';
+const tendozBrandLogoImg = '/tendoz_logo.webp';
+const carouselBanner1Img = '/tendoz_banner_hero.webp';
 import carouselBanner2Img from '../assets/images/tendoz_carousel_banner_2.webp';
 import carouselBanner3Img from '../assets/images/tendoz_carousel_banner_3.webp';
 

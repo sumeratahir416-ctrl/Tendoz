@@ -75,16 +75,45 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const categoryNavBarRef = useRef<HTMLDivElement>(null);
   const [categoryBarHeight, setCategoryBarHeight] = useState<number>(48);
 
-  // Monitor sticky category navigation bar height so sticky announcement bar docks pixel-perfectly
+  // Monitor sticky category navigation bar height (batched in requestAnimationFrame to eliminate forced reflow)
   useEffect(() => {
+    let rafId: number;
     const updateBarHeight = () => {
-      if (categoryNavBarRef.current) {
-        setCategoryBarHeight(categoryNavBarRef.current.offsetHeight);
-      }
+      rafId = window.requestAnimationFrame(() => {
+        if (categoryNavBarRef.current) {
+          setCategoryBarHeight(categoryNavBarRef.current.offsetHeight);
+        }
+      });
     };
     updateBarHeight();
-    window.addEventListener('resize', updateBarHeight);
-    return () => window.removeEventListener('resize', updateBarHeight);
+    window.addEventListener('resize', updateBarHeight, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', updateBarHeight);
+    };
+  }, []);
+
+  // Progressive section rendering: render visible menu items first and lazy-render the rest in idle time
+  const [renderAllSections, setRenderAllSections] = useState(false);
+  useEffect(() => {
+    let idleId: number | null = null;
+    let timerId: NodeJS.Timeout | null = null;
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      idleId = (window as any).requestIdleCallback(
+        () => setRenderAllSections(true),
+        { timeout: 300 }
+      );
+    } else {
+      timerId = setTimeout(() => setRenderAllSections(true), 150);
+    }
+    return () => {
+      if (idleId !== null && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        (window as any).cancelIdleCallback(idleId);
+      }
+      if (timerId !== null) {
+        clearTimeout(timerId);
+      }
+    };
   }, []);
 
   const productsGridRef = useRef<HTMLDivElement>(null);
@@ -346,12 +375,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     return () => clearInterval(interval);
   }, [isPaused, banners.length]);
 
-  // Check horizontal scroll limits for conditional arrows
+  // Check horizontal scroll limits for conditional arrows (batched via requestAnimationFrame to eliminate forced reflow)
   const checkCategoryScrollBounds = useCallback(() => {
-    const el = categoryScrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 6);
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 6);
+    window.requestAnimationFrame(() => {
+      const el = categoryScrollRef.current;
+      if (!el) return;
+      const left = el.scrollLeft;
+      const width = el.clientWidth;
+      const totalWidth = el.scrollWidth;
+      setCanScrollLeft(left > 6);
+      setCanScrollRight(left < totalWidth - width - 6);
+    });
   }, []);
 
   // Update bounds on mount, resize, and category updates
@@ -686,10 +720,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <img
                 src={normalizeImageUrl(banners[currentBanner].image)}
                 alt={banners[currentBanner].alt}
+                width="1200"
+                height="400"
                 className="w-full h-full object-cover select-none"
                 referrerPolicy="no-referrer"
-                loading="eager"
-                fetchPriority="high"
+                loading={currentBanner === 0 ? "eager" : "lazy"}
+                fetchPriority={currentBanner === 0 ? "high" : "auto"}
+                decoding={currentBanner === 0 ? "sync" : "async"}
               />
             </motion.div>
           </AnimatePresence>
@@ -983,10 +1020,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                           <img
                             src={normalizeImageUrl(item.image)}
                             alt={item.name}
+                            width="144"
+                            height="144"
                             onError={handleImageError}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 select-none"
                             referrerPolicy="no-referrer"
                             loading="lazy"
+                            decoding="async"
                           />
 
                           {/* Popular Badge: Exact same size, positioning and visual style as previous discount badges */}
@@ -1063,11 +1103,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                           <img
                             src={normalizeImageUrl(item.image)}
                             alt={item.name}
+                            width="240"
+                            height="240"
                             onError={handleImageError}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 select-none"
                             referrerPolicy="no-referrer"
-                            loading="eager"
-                            fetchPriority="high"
+                            loading="lazy"
+                            decoding="async"
                           />
 
                           {/* Top-Left: Rounded Favorite Heart Button */}
@@ -1164,11 +1206,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         <img
                           src={normalizeImageUrl(item.image)}
                           alt={item.name}
+                          width="144"
+                          height="144"
                           onError={handleImageError}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 select-none"
                           referrerPolicy="no-referrer"
-                          loading={isStage2PriorityCategory ? 'eager' : 'lazy'}
-                          fetchPriority={isStage2PriorityCategory ? 'high' : 'low'}
+                          loading="lazy"
+                          decoding="async"
                         />
 
                         {/* Popular Badge: Exact same size, positioning and visual style as previous discount badges */}
@@ -1223,24 +1267,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       key={cat}
                       id={`cat-section-${slug}`}
                       className="scroll-mt-20 space-y-4 sm:space-y-6"
+                      style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 360px' }}
                     >
-                      {/* Category Banner Image with transparent background */}
+                      {/* Category Banner Image with reserved aspect ratio to eliminate layout shift (CLS) */}
                       {CATEGORY_BANNERS[cat] && (
-                        <div className="w-full overflow-hidden">
+                        <div className="w-full aspect-[3.5/1] max-h-[140px] sm:max-h-[185px] md:max-h-[210px] overflow-hidden rounded-2xl flex items-center justify-center">
                           <img
                             src={CATEGORY_BANNERS[cat]}
                             alt={`${cat} Banner`}
-                            className="w-full h-auto max-h-[140px] sm:max-h-[185px] md:max-h-[210px] object-contain select-none filter drop-shadow-xs"
-                            loading={
-                              ['Popular', 'Pizzas', 'Burgers', 'Deals'].includes(cat)
-                                ? 'eager'
-                                : 'lazy'
-                            }
-                            fetchPriority={
-                              ['Popular', 'Pizzas', 'Burgers', 'Deals'].includes(cat)
-                                ? 'high'
-                                : 'low'
-                            }
+                            width="900"
+                            height="250"
+                            className="w-full h-full object-contain select-none filter drop-shadow-xs"
+                            loading="lazy"
+                            decoding="async"
                           />
                         </div>
                       )}
@@ -1274,10 +1313,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   );
                 };
 
+                const displayedOriginalCategories = renderAllSections
+                  ? originalSectionCategories
+                  : originalSectionCategories.slice(0, 3);
+
                 return (
                   <>
-                    {/* 2. Original Menu Categories */}
-                    {originalSectionCategories.map((cat) => renderCategorySection(cat))}
+                    {/* 2. Original Menu Categories: Render visible first, lazy-render the rest */}
+                    {displayedOriginalCategories.map((cat) => renderCategorySection(cat))}
 
                     {/* 3. New Menu Tab Section */}
                     <div id="new-menu-section" className="relative pt-3 sm:pt-4">
@@ -1332,8 +1375,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             <img
                               src={normalizeImageUrl('https://kommodo.ai/i/eLLos3b8P0BmrJn5Zl3O')}
                               alt="Chill Pill Special Menu"
+                              width="144"
+                              height="144"
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 select-none"
                               loading="lazy"
+                              decoding="async"
                             />
 
                             {/* Circular Action Button at bottom-right of image */}

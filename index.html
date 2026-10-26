@@ -49,14 +49,83 @@
     />
     <meta name="twitter:image" content="https://tendoz.pk/tendoz_logo.webp" />
 
-    <!-- Performance & Font Preconnect Optimization for Core Web Vitals -->
+    <!-- Performance & Font Optimization (Non-blocking Async, Max 2 Weights: 600, 800) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&family=Montserrat:wght@800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
-      rel="stylesheet"
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&display=swap"
     />
-    <link href="https://fonts.cdnfonts.com/css/integral-cf" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&display=swap"
+      />
+    </noscript>
+
+    <!-- Critical LCP Hero Banner & Brand Logo Preloads (Discovered in initial HTML with fetchpriority="high") -->
+    <link rel="preload" as="image" href="/tendoz_banner_hero.webp" type="image/webp" fetchpriority="high" />
+    <link rel="preload" as="image" href="/tendoz_logo.webp" type="image/webp" fetchpriority="high" />
+
+    <!-- Inlined Critical CSS for Sub-800ms First Contentful Paint (FCP) and Zero CLS -->
+    <style>
+      html {
+        scroll-behavior: smooth;
+        scrollbar-gutter: stable;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background-color: #fafafa;
+        color: #171717;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+      }
+      @keyframes skeletonShimmerFlow {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+      }
+      .skeleton-shimmer {
+        background: linear-gradient(90deg, #ECEEF1 0%, #F4F5F7 35%, #E4E7EB 70%, #ECEEF1 100%);
+        background-size: 200% 100%;
+        animation: skeletonShimmerFlow 1.8s ease-in-out infinite;
+      }
+      .initial-header {
+        height: 64px;
+        background-color: #ffffff;
+        border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .initial-hero-wrap {
+        padding: 12px 16px;
+        max-width: 1152px;
+        margin: 0 auto;
+      }
+      .initial-hero-box {
+        width: 100%;
+        aspect-ratio: 3 / 1;
+        border-radius: 1.25rem;
+        overflow: hidden;
+        background-color: #171717;
+        position: relative;
+      }
+      .initial-hero-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+    </style>
 
     <!-- Schema.org Structured Data (JSON-LD) for Local Business & Fast Food Restaurant -->
     <script type="application/ld+json">
@@ -117,7 +186,31 @@
     </script>
   </head>
   <body class="bg-neutral-100 text-neutral-900 antialiased font-sans selection:bg-[#D81A07] selection:text-white">
-    <div id="root"></div>
+    <div id="root">
+      <!-- Critical Initial Shell: Immediate LCP Discovery in HTML -->
+      <div class="initial-header">
+        <img
+          src="/tendoz_logo.webp"
+          alt="Tendoz Restaurant"
+          width="45"
+          height="45"
+          fetchpriority="high"
+          style="width: 45px; height: 45px; object-fit: contain; border-radius: 12px;"
+        />
+      </div>
+      <div class="initial-hero-wrap">
+        <div class="initial-hero-box">
+          <img
+            src="/tendoz_banner_hero.webp"
+            alt="Tendoz Special Deals"
+            width="1200"
+            height="400"
+            fetchpriority="high"
+            class="initial-hero-img"
+          />
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
