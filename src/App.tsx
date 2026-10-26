@@ -46,6 +46,11 @@ import {
   dismissOrderInFirestore,
   getUserSessionScopeKey,
 } from './services/firebase';
+import {
+  formatAddressWithLocationTag,
+  cleanAreaName,
+  formatLocationTag,
+} from './utils/locationUtils';
 
 const MENU_STORAGE_KEY = 'tendoz_menu_items_v2';
 
@@ -301,11 +306,11 @@ function MainApp() {
     setIsAppLoading(true);
     const startTime = performance.now();
 
-    // Preload top logo and promotional carousel banner before dismissing skeleton
+    // Preload top logo, promotional carousel banners, and popular items
     preloadLaunchAssets().then(() => {
       const elapsed = performance.now() - startTime;
-      // Guarantee at least 850ms of silky smooth skeleton visibility to prevent jarring flash
-      const minDisplayDuration = 850;
+      // Ultra-snappy splash duration (~200ms) for instant smooth transition without sluggish delay
+      const minDisplayDuration = 200;
       const remainingTime = Math.max(0, minDisplayDuration - elapsed);
 
       setTimeout(() => {
@@ -324,16 +329,12 @@ function MainApp() {
     }
   }, [startLaunchSequence]);
 
-  // First-Time Onboarding: Prompt location selection immediately after initial splash screen finishes loading
+  // Persistent Location Pop-Up on Every Visit:
+  // Ensure the location selection pop-up / screen appears every single time a user opens or visits the app
   useEffect(() => {
     if (isAppLoading || hasCheckedOnboardingLocation) return;
     setHasCheckedOnboardingLocation(true);
-    try {
-      const savedArea = localStorage.getItem('tendoz_user_selected_area');
-      if (!savedArea) {
-        setIsLocationModalOpen(true);
-      }
-    } catch {}
+    setIsLocationModalOpen(true);
   }, [isAppLoading, hasCheckedOnboardingLocation]);
 
   // Welcome top banner on initial load (only fires after smooth app launch transition completes)
@@ -775,20 +776,18 @@ function MainApp() {
       })
       .join(', ');
 
-    // Resolve user's initial location selection (chosen during first-time onboarding)
+    // Resolve user's selected location from pop-up
     const initialLoc = (() => {
       try {
-        return (localStorage.getItem('tendoz_user_selected_area') || selectedLocation.area || '').trim();
+        return (selectedLocation.area || localStorage.getItem('tendoz_user_selected_area') || '').trim();
       } catch {
         return (selectedLocation.area || '').trim();
       }
     })();
-    const cleanLoc = initialLoc.replace(/^\[|\]$/g, '').trim();
-
-    let finalOrderAddress = (details.address || '').trim();
-    if (cleanLoc && !finalOrderAddress.includes(`[${cleanLoc}]`)) {
-      finalOrderAddress = finalOrderAddress ? `${finalOrderAddress} [${cleanLoc}]` : `[${cleanLoc}]`;
-    }
+    const cleanLoc = cleanAreaName(initialLoc);
+    const finalOrderAddress = formatAddressWithLocationTag(details.address, cleanLoc);
+    const locationTag = formatLocationTag(cleanLoc);
+    const effectiveOrderType = selectedLocation.orderType === 'Pick-Up' ? 'Takeaway' : 'Delivery';
 
     const newOrder: Order = {
       id: newOrderId,
@@ -804,9 +803,9 @@ function MainApp() {
       address: finalOrderAddress,
       phone: details.phone,
       additionalPhone: details.additionalPhone,
-      selectedLocation: cleanLoc ? `[${cleanLoc}]` : undefined,
+      selectedLocation: locationTag || undefined,
       trackingStep: 1,
-      orderType: 'Takeaway',
+      orderType: effectiveOrderType,
       items: orderItems,
     };
 
@@ -826,7 +825,7 @@ function MainApp() {
           email: details.email,
           specialInstructions: details.specialInstructions,
           pickupBranch: details.pickupBranch,
-          selectedLocation: cleanLoc ? `[${cleanLoc}]` : undefined,
+          selectedLocation: locationTag || undefined,
         }
       );
     } catch (err) {
@@ -1208,6 +1207,8 @@ function MainApp() {
               key="checkout"
               item={selectedItem}
               cartItems={cart}
+              selectedLocation={selectedLocation}
+              onOpenLocationModal={() => setIsLocationModalOpen(true)}
               onUpdateQuantity={handleUpdateQuantity}
               onRemoveItem={handleRemoveFromCart}
               onBack={() => handleNavigate('home')}

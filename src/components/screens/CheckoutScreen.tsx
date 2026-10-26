@@ -20,10 +20,14 @@ import { MenuItem, CartItem } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { normalizeImageUrl, handleImageError } from '../../utils/imageUtils';
 import { tendozBrandLogoImg } from '../../data/initialData';
+import { formatAddressWithLocationTag, cleanAreaName, formatLocationTag } from '../../utils/locationUtils';
+import { UserLocationSelection } from '../LocationSelectionModal';
 
 interface CheckoutScreenProps {
   item: MenuItem;
   cartItems?: CartItem[];
+  selectedLocation?: UserLocationSelection;
+  onOpenLocationModal?: () => void;
   onBack: () => void;
   onConfirmOrder: (orderDetails: {
     customerName: string;
@@ -126,20 +130,13 @@ export function buildWhatsAppReceiptMessage(params: WhatsAppReceiptParams): stri
 
   const deliveryFeeDisplay = params.deliveryFee > 0 ? params.deliveryFee.toLocaleString() : '0';
 
-  // Automatically append the user's initial location selection in brackets if not already present
+  // Automatically append the user's selected location in brackets [Area] to the location field
   const initialLoc = (
     params.initialLocation ||
     (typeof window !== 'undefined' ? localStorage.getItem('tendoz_user_selected_area') : '') ||
     ''
   ).trim();
-  const cleanLoc = initialLoc.replace(/^\[|\]$/g, '').trim();
-
-  let formattedDeliveryAddress = (params.address || '').trim();
-  if (cleanLoc && !formattedDeliveryAddress.includes(`[${cleanLoc}]`)) {
-    formattedDeliveryAddress = formattedDeliveryAddress
-      ? `${formattedDeliveryAddress} [${cleanLoc}]`
-      : `[${cleanLoc}]`;
-  }
+  const formattedDeliveryAddress = formatAddressWithLocationTag(params.address, initialLoc);
 
   let message = `*NEW ORDER RECEIVED* (${timeStr} ${dateStr})
 ----------------------------------
@@ -168,6 +165,8 @@ ${itemLines}
 export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
   item,
   cartItems = [],
+  selectedLocation,
+  onOpenLocationModal,
   onBack,
   onConfirmOrder,
   onUpdateQuantity,
@@ -177,6 +176,13 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
   const SAVED_ADDRESS_STORAGE_KEY = 'tendoz_saved_address';
   const SAVED_NAME_STORAGE_KEY = 'tendoz_saved_customer_name';
   const SAVED_PHONE_STORAGE_KEY = 'tendoz_saved_customer_phone';
+
+  // Resolved chosen location area from pop-up
+  const chosenArea = (
+    selectedLocation?.area ||
+    (typeof window !== 'undefined' ? localStorage.getItem('tendoz_user_selected_area') : '') ||
+    ''
+  ).trim();
 
   // Form state matching reference screenshot fields with persistent auto-fill
   const [title, setTitle] = useState<'Mr.' | 'Ms.' | 'Mrs.' | 'Dr.'>('Mr.');
@@ -299,30 +305,18 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
     const primaryPhone = mobileNumber.trim();
     const secondaryPhone = alternateMobile.trim() || undefined;
 
-    // Resolve user's initial location selection (chosen during first-time onboarding)
-    const initialArea = (() => {
-      try {
-        return (localStorage.getItem('tendoz_user_selected_area') || '').trim();
-      } catch {
-        return '';
-      }
-    })();
-    const cleanArea = initialArea.replace(/^\[|\]$/g, '').trim();
-
-    // Automatically append the user's initial location selection in brackets if not already present
-    let userAddress = address.trim();
-    if (cleanArea && !userAddress.includes(`[${cleanArea}]`)) {
-      userAddress = userAddress ? `${userAddress} [${cleanArea}]` : `[${cleanArea}]`;
-    }
+    // Format address with selected area in brackets [Area]
+    const userAddress = formatAddressWithLocationTag(address, chosenArea);
+    const effectiveOrderType = selectedLocation?.orderType || 'Delivery';
 
     // Generate dynamic WhatsApp receipt message matching exact prompt structure
     const waText = buildWhatsAppReceiptMessage({
       userName: customerFullName,
       phone: primaryPhone,
       altPhone: secondaryPhone,
-      orderType: 'Takeaway',
+      orderType: effectiveOrderType,
       address: userAddress,
-      initialLocation: cleanArea,
+      initialLocation: chosenArea,
       items: displayItems,
       subtotal,
       deliveryFee: 0,
@@ -560,7 +554,7 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
             </div>
 
             {/* Row 3: Address / Location Input */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-neutral-700">Address / Location</label>
                 <span className="text-[10px] font-bold text-red-600 uppercase">*Required</span>
@@ -580,6 +574,24 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
                     : 'border-neutral-200 focus:border-[#D81A07]'
                 } rounded-xl text-sm outline-none transition-all`}
               />
+              {cleanAreaName(chosenArea) && (
+                <div className="flex items-center justify-between text-xs font-medium text-neutral-700 bg-red-50/50 border border-red-200/90 px-3 py-1.5 rounded-xl">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <MapPin className="w-3.5 h-3.5 text-[#D81A07] shrink-0" />
+                    <span>Auto-tagging area:</span>
+                    <span className="font-extrabold text-[#D81A07]">[{cleanAreaName(chosenArea)}]</span>
+                  </div>
+                  {onOpenLocationModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenLocationModal}
+                      className="text-[#D81A07] font-bold hover:underline cursor-pointer shrink-0 ml-2 text-[11px]"
+                    >
+                      Change Area
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Row 4: Pickup Notes */}
@@ -974,6 +986,24 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
                   : 'border-neutral-200 focus:border-[#B91C1C] focus:ring-2 focus:ring-[#B91C1C]/20'
               } rounded-2xl text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition-all`}
             />
+            {cleanAreaName(chosenArea) && (
+              <div className="flex items-center justify-between text-xs font-medium text-neutral-700 bg-red-50/50 border border-red-200/90 px-3.5 py-2 rounded-2xl">
+                <div className="flex items-center gap-1.5 truncate">
+                  <MapPin className="w-3.5 h-3.5 text-[#D81A07] shrink-0" />
+                  <span>Auto-tagging area:</span>
+                  <span className="font-extrabold text-[#D81A07]">[{cleanAreaName(chosenArea)}]</span>
+                </div>
+                {onOpenLocationModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenLocationModal}
+                    className="text-[#D81A07] font-bold hover:underline cursor-pointer shrink-0 ml-2 text-[11px]"
+                  >
+                    Change
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Pickup Branch Location Box */}

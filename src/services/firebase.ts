@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { MenuItem, Order, CartItem } from '../types';
+import { formatAddressWithLocationTag, formatLocationTag, cleanAreaName } from '../utils/locationUtils';
 
 // Initialize Firebase App and Services
 export const app = initializeApp(firebaseConfig);
@@ -333,19 +334,16 @@ export async function submitOrderToFirestore(
     };
   });
 
-  // Resolve user's initial location selection (chosen during first-time onboarding)
+  // Resolve user's location selection (chosen during pop-up)
   const rawLoc = (
     extraDetails?.selectedLocation ||
     order.selectedLocation ||
     (typeof window !== 'undefined' ? localStorage.getItem('tendoz_user_selected_area') : '') ||
     ''
   ).trim();
-  const cleanLoc = rawLoc.replace(/^\[|\]$/g, '').trim();
-
-  let finalAddress = (order.address || '').trim();
-  if (cleanLoc && !finalAddress.includes(`[${cleanLoc}]`)) {
-    finalAddress = finalAddress ? `${finalAddress} [${cleanLoc}]` : `[${cleanLoc}]`;
-  }
+  const cleanLoc = cleanAreaName(rawLoc);
+  const finalAddress = formatAddressWithLocationTag(order.address, cleanLoc);
+  const locationTag = formatLocationTag(cleanLoc);
 
   const orderPayload: FirestoreOrderPayload = {
     id: order.id,
@@ -353,7 +351,7 @@ export async function submitOrderToFirestore(
     phone: order.phone,
     additionalPhone: additionalPhone || '',
     address: finalAddress,
-    selectedLocation: cleanLoc ? `[${cleanLoc}]` : '',
+    selectedLocation: locationTag,
     total: Number(order.total),
     totalBill: Number(order.total),
     status: order.status || 'Waiting for Restaurant',

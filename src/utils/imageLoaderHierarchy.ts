@@ -9,10 +9,10 @@ import {
 import { normalizeImageUrl } from './imageUtils';
 
 /**
- * Image Preloader Promise Utility
- * Resolves as soon as the image is ready (from cache or network)
+ * Image Preloader Promise Utility with high-performance timeout resilience.
+ * Resolves as soon as the image is ready (from cache or network) or when timeout expires.
  */
-export const preloadImage = (src: string): Promise<boolean> => {
+export const preloadImage = (src: string, timeoutMs: number = 1200): Promise<boolean> => {
   return new Promise((resolve) => {
     if (!src) {
       resolve(true);
@@ -20,26 +20,56 @@ export const preloadImage = (src: string): Promise<boolean> => {
     }
     const cleanUrl = normalizeImageUrl(src);
     const img = new Image();
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (!settled) {
+        settled = true;
+        resolve(ok);
+      }
+    };
+    const timer = setTimeout(() => finish(true), timeoutMs);
     img.src = cleanUrl;
     if (img.complete && img.naturalWidth > 0) {
-      resolve(true);
+      clearTimeout(timer);
+      finish(true);
     } else {
-      img.onload = () => resolve(true);
-      img.onerror = () => resolve(false); // Graceful recovery on any network anomaly
+      img.onload = () => {
+        clearTimeout(timer);
+        finish(true);
+      };
+      img.onerror = () => {
+        clearTimeout(timer);
+        finish(false); // Graceful recovery on any network anomaly
+      };
     }
   });
 };
 
 /**
- * Launch Priority: Ensures Top Header Logo and Primary Promotional Carousel Banner
- * are 100% loaded before dismissing the startup skeleton loader.
+ * Launch Priority: Ensures Top Header Logo, Promotional Carousel Banner,
+ * and top popular items are preloaded in parallel with lightning-fast execution (<350ms cap).
  */
 export const preloadLaunchAssets = async (): Promise<void> => {
-  await Promise.all([
-    preloadImage(tendozBrandLogoImg),
-    preloadImage(carouselBanner1Img),
-    preloadImage(carouselBanner2Img),
-    preloadImage(carouselBanner3Img),
+  // Preload critical viewport assets in parallel
+  const primaryPromises = [
+    preloadImage(tendozBrandLogoImg, 900),
+    preloadImage(carouselBanner1Img, 900),
+  ];
+
+  // Secondary banners load non-blocking in background
+  preloadImage(carouselBanner2Img, 2000);
+  preloadImage(carouselBanner3Img, 2000);
+
+  // Preload top popular items in parallel so they are instantly cached
+  const topPopularSamples = [
+    'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80',
+  ];
+  topPopularSamples.forEach((url) => preloadImage(url, 1200));
+
+  await Promise.race([
+    Promise.all(primaryPromises),
+    new Promise((resolve) => setTimeout(resolve, 350)),
   ]);
 };
 
