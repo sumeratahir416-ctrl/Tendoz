@@ -1,0 +1,7 @@
+# Robots.txt for Tendoz Restaurant Sahiwal
+User-agent: *
+Allow: /
+Disallow: /admin
+
+# Sitemap declaration
+Sitemap: https://tendoz.pk/sitemap.xml

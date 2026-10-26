@@ -1,0 +1,8 @@
+{
+  "name": "Tendoz Restaurant",
+  "description": "Official online food ordering web app for Tendoz Restaurant in Sahiwal featuring crispy tenders, pizzas, burgers, injected broast, wraps, and fast checkout.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

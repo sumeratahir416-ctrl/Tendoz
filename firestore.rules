@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-#]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'behstvs@gmail.com' &&
+        request.auth.token.email_verified == true
+      );
+    }
+
+    function isValidMenuItem(data) {
+      return data.keys().hasAll(['id', 'name', 'category', 'price', 'description']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.name is string && data.name.size() <= 128 &&
+        data.category is string && data.category.size() <= 64 &&
+        data.price is number && data.price >= 0 &&
+        data.description is string && data.description.size() <= 1000;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'customerName', 'phone', 'address', 'total', 'status']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.customerName is string && data.customerName.size() <= 128 &&
+        data.phone is string && data.phone.size() <= 32 &&
+        data.address is string && data.address.size() <= 500 &&
+        (!('selectedLocation' in data) || (data.selectedLocation is string && data.selectedLocation.size() <= 128)) &&
+        data.total is number && data.total >= 0 &&
+        data.status is string && data.status.size() <= 64;
+    }
+
+    // Health / Connection Test
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // Collection 1: menu (Public catalog for all customers)
+    match /menu/{menuId} {
+      allow read: if true;
+      allow create: if isValidId(menuId) && isValidMenuItem(incoming());
+      allow update: if isValidId(menuId) && isValidMenuItem(incoming());
+      allow delete: if isValidId(menuId);
+    }
+
+    // Collection 2: orders (Checkout orders with strict isolation & customer privacy)
+    match /orders/{orderId} {
+      // Single order lookup by orderId (for live status tracking on Home Screen & Order Details)
+      allow get: if isValidId(orderId);
+
+      // List queries restricted to Admin or authenticated owner to prevent data scraping
+      allow list: if isAdmin() || (
+        isSignedIn() && resource.data.userId == request.auth.uid
+      );
+
+      // Order creation with full payload validation
+      allow create: if isValidId(orderId) && isValidOrder(incoming()) && (
+        !isSignedIn() || incoming().userId == request.auth.uid
+      );
+
+      // Order status updates: Admin or status dispatch progression / customer cancellation / dismissal
+      allow update: if isValidId(orderId) && (
+        isAdmin() ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'trackingStep', 'cancelledBy', 'cancelledAt', 'isDeleted', 'deletedAt', 'isDismissed', 'dismissedAt'])
+      );
+      allow delete: if isValidId(orderId) && isAdmin();
+    }
+  }
+}

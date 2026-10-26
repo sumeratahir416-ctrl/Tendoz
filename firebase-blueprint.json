@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "Menu item entity containing complete product details, pricing, categories, and customizations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "maxLength": 64 },
+        "price": { "type": "number" },
+        "originalPrice": { "type": "number" },
+        "description": { "type": "string", "maxLength": 1000 },
+        "image": { "type": "string", "maxLength": 1000 },
+        "spiceLevel": { "type": "string", "maxLength": 32 },
+        "calories": { "type": "number" },
+        "prepTime": { "type": "string", "maxLength": 32 },
+        "rating": { "type": "number" },
+        "servings": { "type": "string", "maxLength": 64 },
+        "isPopular": { "type": "boolean" },
+        "tag": { "type": "string", "maxLength": 64 },
+        "dipsIncluded": { "type": "number" }
+      },
+      "required": ["id", "name", "category", "price", "description"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order entity submitted through checkout with customer info, items, and status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 128 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "additionalPhone": { "type": "string", "maxLength": 32 },
+        "address": { "type": "string", "maxLength": 500 },
+        "selectedLocation": { "type": "string", "maxLength": 128 },
+        "total": { "type": "number" },
+        "totalBill": { "type": "number" },
+        "status": { "type": "string", "maxLength": 64 },
+        "date": { "type": "string", "maxLength": 64 },
+        "orderType": { "type": "string", "maxLength": 32 },
+        "trackingStep": { "type": "number" },
+        "userId": { "type": "string", "maxLength": 128 },
+        "isDeleted": { "type": "boolean" },
+        "deletedAt": { "type": "string" },
+        "isDismissed": { "type": "boolean" },
+        "dismissedAt": { "type": "string" }
+      },
+      "required": ["id", "customerName", "phone", "address", "total", "status"]
+    }
+  },
+  "firestore": {
+    "/menu/{menuId}": {
+      "schema": "MenuItem",
+      "description": "Complete product catalog categorized by Deals, Pizza, Flavoured Soda, Soft Drinks, Chill Pill, etc."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders submitted via checkout with full customer details, ordered items, and status."
+    }
+  }
+}
