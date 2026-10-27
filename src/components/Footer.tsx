@@ -53,10 +53,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onReplayLaunchSkelet
 
           <div>
             <h3 className="font-black text-lg sm:text-xl text-neutral-900 tracking-tight leading-tight">
-              Tendoz Restaurant
+              Tendoz 
             </h3>
             <p className="text-xs sm:text-[13px] font-extrabold text-[#DC2626] uppercase tracking-wider leading-none mt-1">
-              AUTHENTIC TASTE & FAST FOOD
+              Crispy Cheesey & Saucy
             </p>
             <p className="text-[11px] sm:text-xs text-neutral-500 font-medium mt-1">
               Near Pilot Girls School, Sahiwal, Punjab
